@@ -34,7 +34,6 @@ func initGRPCClient[T any, S any](
 	newClientFunc func(cc grpc.ClientConnInterface) T,
 	encapsulationFunc func(cli T, manager *ConnManager) *S,
 ) (*S, error) {
-
 	if config.Etcd == nil || config.Etcd.Addr == "" {
 		return nil, errors.New("config.Etcd.Addr is nil")
 	}
@@ -48,8 +47,19 @@ func initGRPCClient[T any, S any](
 	}
 	client := encapsulationFunc(newClientFunc(m.Conn), m)
 	go func() {
-		go r.WatchAndResolve(context.Background()) // 确保活跃
-		// your code...
+		changeCh := make(chan struct{})
+		defer close(changeCh)
+		go r.WatchAndResolve(context.Background(), changeCh)
+		for range changeCh {
+			m.RefreshGRPC()
+			newCli := newClientFunc(m.Conn)
+			// 封装 S 结构体需要支持 UpdateClient 方法
+			if c, ok := any(client).(interface {
+				UpdateClient(newClient T)
+			}); ok {
+				c.UpdateClient(newCli)
+			}
+		}
 	}()
 
 	return client, nil

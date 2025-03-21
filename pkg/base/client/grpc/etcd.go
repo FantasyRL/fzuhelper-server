@@ -18,16 +18,15 @@ package grpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/bytedance/sonic"
-	"github.com/west2-online/fzuhelper-server/pkg/logger"
-	"github.com/west2-online/fzuhelper-server/pkg/utils"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"strings"
 
-	"github.com/west2-online/fzuhelper-server/config"
+	"github.com/bytedance/sonic"
+	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"github.com/west2-online/fzuhelper-server/pkg/constants"
+	"github.com/west2-online/fzuhelper-server/pkg/logger"
+	"github.com/west2-online/fzuhelper-server/pkg/utils"
 )
 
 const (
@@ -56,56 +55,44 @@ func NewEtcdResolver(endpoints []string) (*EtcdResolver, error) {
 	return &EtcdResolver{
 		EtcdClient: etcdClient,
 		prefix:     etcdPrefix,
+		Endpoints:  *utils.NewAtomicStrings(),
 	}, nil
-
 }
 
-func (r *EtcdResolver) WatchAndResolve(ctx context.Context) {
+func (r *EtcdResolver) WatchAndResolve(ctx context.Context, changeCh chan<- struct{}) {
 	watchCh := r.EtcdClient.Watch(ctx, r.getEtcdKeyPrefix())
-	for wResp := range watchCh {
-		for _, ev := range wResp.Events {
-			switch ev.Type {
-			case clientv3.EventTypePut:
-				var eps []string
-				if err := sonic.Unmarshal(ev.Kv.Value, &eps); err != nil {
-					// 如果解析失败，认为是单个 endpoint
-					eps = []string{string(ev.Kv.Value)}
-				}
-				r.Endpoints.Store(eps)
-			case clientv3.EventTypeDelete:
-				r.Endpoints.Store(nil)
+	for {
+		select {
+		case wResp, ok := <-watchCh:
+			if !ok {
+				return
 			}
+			if wResp.Err() != nil {
+				logger.Errorf("Etcd watch error: %v", wResp.Err())
+				continue
+			}
+			for _, ev := range wResp.Events {
+				switch ev.Type {
+				case clientv3.EventTypePut:
+					var eps []string
+					if err := sonic.Unmarshal(ev.Kv.Value, &eps); err != nil {
+						// 如果解析失败，认为是单个 endpoint
+						eps = []string{string(ev.Kv.Value)}
+					}
+					r.Endpoints.Store(eps)
+				case clientv3.EventTypeDelete:
+					r.Endpoints.Store(nil)
+				}
+			}
+			changeCh <- struct{}{}
 
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
-// initEtcdClient 允许即使没有初始 endpoints 也能启动
-func initEtcdClient(serviceKey string) (*EtcdResolver, error) {
-	if config.Etcd == nil || config.Etcd.Addr == "" {
-		return nil, errors.New("config.Etcd.Addr is nil")
-	}
-	etcdCli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{config.Etcd.Addr},
-		DialTimeout: constants.EtcdDialTimeout,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("connect etcd failed: %w", err)
-	}
-
-	c := &EtcdResolver{
-		EtcdClient:  etcdCli,
-		serviceName: serviceKey,
-	}
-
-	// 尝试加载 endpoints，但不因为空而失败
-	if err := c.initResolve(); err != nil {
-		logger.Errorf("initResolve failed: %v", err)
-	}
-
-	return c, nil
-}
-
+/*
 // initResolve 尝试从 etcd 中加载 endpoints，并统一解析为 []string
 func (r *EtcdResolver) initResolve() error {
 	resp, err := r.EtcdClient.Get(context.Background(), r.getEtcdKeyPrefix(), clientv3.WithPrefix())
@@ -126,6 +113,7 @@ func (r *EtcdResolver) initResolve() error {
 	r.Endpoints.Store(allEndpoints)
 	return nil
 }
+*/
 
 // GetRandomEndpoint 随机返回一个 endpoint
 func (r *EtcdResolver) GetRandomEndpoint() (string, bool) {
