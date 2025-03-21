@@ -50,6 +50,7 @@ func Register(r *server.Hertz) {
 			}
 			{
 				_common := _v1.Group("/common", _commonMw()...)
+				_common.GET("/contributor", append(_getcontributorinfoMw(), api.GetContributorInfo)...)
 				_common.GET("/notice", append(_getnoticeMw(), api.GetNotice)...)
 				{
 					_classroom := _common.Group("/classroom", _classroomMw()...)
@@ -57,10 +58,21 @@ func Register(r *server.Hertz) {
 				}
 			}
 			{
+				_course := _v1.Group("/course", _courseMw()...)
+				_course.GET("/date", append(_getlocatedateMw(), api.GetLocateDate)...)
+			}
+			{
 				_internal := _v1.Group("/internal", _internalMw()...)
 				{
 					_user := _internal.Group("/user", _userMw()...)
 					_user.GET("/login", append(_getlogindataMw(), api.GetLoginData)...)
+				}
+				{
+					_yjsy := _internal.Group("/yjsy", _yjsyMw()...)
+					{
+						_user0 := _yjsy.Group("/user", _user0Mw()...)
+						_user0.GET("/login", append(_getgetlogindataforyjsyMw(), api.GetGetLoginDataForYJSY)...)
+					}
 				}
 			}
 			{
@@ -79,17 +91,17 @@ func Register(r *server.Hertz) {
 					_classroom0.GET("/exam", append(_getexamroominfoMw(), api.GetExamRoomInfo)...)
 				}
 				{
-					_course := _jwch.Group("/course", _courseMw()...)
-					_course.GET("/calendar", append(_getcalendarMw(), api.GetCalendar)...)
-					_course.GET("/list", append(_getcourselistMw(), api.GetCourseList)...)
+					_course0 := _jwch.Group("/course", _course0Mw()...)
+					_course0.GET("/calendar", append(_getcalendarMw(), api.GetCalendar)...)
+					_course0.GET("/list", append(_getcourselistMw(), api.GetCourseList)...)
 				}
 				{
 					_term := _jwch.Group("/term", _termMw()...)
 					_term.GET("/list", append(_gettermlistMw(), api.GetTermList)...)
 				}
 				{
-					_user0 := _jwch.Group("/user", _user0Mw()...)
-					_user0.GET("/info", append(_getuserinfoMw(), api.GetUserInfo)...)
+					_user1 := _jwch.Group("/user", _user1Mw()...)
+					_user1.GET("/info", append(_getuserinfoMw(), api.GetUserInfo)...)
 				}
 			}
 			{
@@ -120,8 +132,8 @@ func Register(r *server.Hertz) {
 				_terms.GET("/list", append(_gettermslistMw(), api.GetTermsList)...)
 			}
 			{
-				_user1 := _v1.Group("/user", _user1Mw()...)
-				_user1.POST("/validate-code", append(_validatecodeMw(), api.ValidateCode)...)
+				_user2 := _v1.Group("/user", _user2Mw()...)
+				_user2.POST("/validate-code", append(_validatecodeMw(), api.ValidateCode)...)
 			}
 		}
 		{
@@ -146,6 +158,10 @@ func Register(r *server.Hertz) {
 				_url.POST("/upload-params", append(_uploadparamsMw(), api.UploadParams)...)
 				_url.GET("/version.json", append(_getreleaseversionMw(), api.GetReleaseVersion)...)
 				_url.GET("/versionbeta.json", append(_getbetaversionMw(), api.GetBetaVersion)...)
+			}
+			{
+				_version := _v2.Group("/version", _versionMw()...)
+				_version.GET("/android", append(_androidgetversionMw(), api.AndroidGetVersion)...)
 			}
 		}
 	}

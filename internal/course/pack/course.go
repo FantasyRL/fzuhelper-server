@@ -17,14 +17,29 @@ limitations under the License.
 package pack
 
 import (
+	"strings"
+
 	"github.com/west2-online/fzuhelper-server/kitex_gen/model"
 	"github.com/west2-online/fzuhelper-server/pkg/constants"
 	"github.com/west2-online/jwch"
+	"github.com/west2-online/yjsy"
 )
+
+func normalizeCourseLocation(location string) string {
+	if location == "旗山物理实验教学中心" || location == "铜盘教学楼" {
+		return location
+	}
+
+	// 去除 {铜盘,旗山} 前缀
+	location = strings.TrimPrefix(location, "铜盘")
+	location = strings.TrimPrefix(location, "旗山")
+
+	return location
+}
 
 func buildScheduleRule(scheduleRule jwch.CourseScheduleRule) *model.CourseScheduleRule {
 	return &model.CourseScheduleRule{
-		Location:   scheduleRule.Location,
+		Location:   normalizeCourseLocation(scheduleRule.Location),
 		StartClass: int64(scheduleRule.StartClass),
 		EndClass:   int64(scheduleRule.EndClass),
 		StartWeek:  int64(scheduleRule.StartWeek),
@@ -55,6 +70,7 @@ func BuildCourse(courses []*jwch.Course) []*model.Course {
 			ScheduleRules:    buildScheduleRules(course.ScheduleRules),
 			RawScheduleRules: course.RawScheduleRules,
 			RawAdjust:        course.RawAdjust,
+			Remark:           course.Remark,
 		})
 	}
 	return courseList
@@ -62,6 +78,53 @@ func BuildCourse(courses []*jwch.Course) []*model.Course {
 
 func GetTop2Terms(term *jwch.Term) *jwch.Term {
 	t := new(jwch.Term)
+	if len(term.Terms) <= constants.CourseCacheMaxNum {
+		return term
+	}
+	t.Terms = term.Terms[:constants.CourseCacheMaxNum]
+	return t
+}
+
+func buildScheduleRuleYjsy(scheduleRule yjsy.CourseScheduleRule) *model.CourseScheduleRule {
+	return &model.CourseScheduleRule{
+		Location:   normalizeCourseLocation(scheduleRule.Location),
+		StartClass: int64(scheduleRule.StartClass),
+		EndClass:   int64(scheduleRule.EndClass),
+		StartWeek:  int64(scheduleRule.StartWeek),
+		EndWeek:    int64(scheduleRule.EndWeek),
+		Weekday:    int64(scheduleRule.Weekday),
+		Single:     scheduleRule.Single,
+		Double:     scheduleRule.Double,
+		Adjust:     scheduleRule.Adjust,
+	}
+}
+
+func buildScheduleRulesYjsy(scheduleRules []yjsy.CourseScheduleRule) []*model.CourseScheduleRule {
+	var res []*model.CourseScheduleRule
+	for _, scheduleRule := range scheduleRules {
+		res = append(res, buildScheduleRuleYjsy(scheduleRule))
+	}
+	return res
+}
+
+func BuildCourseYjsy(courses []*yjsy.Course) []*model.Course {
+	var courseList []*model.Course
+	for _, course := range courses {
+		courseList = append(courseList, &model.Course{
+			Name:             course.Name,
+			Syllabus:         course.Syllabus,
+			Lessonplan:       course.LessonPlan,
+			Teacher:          course.Teacher,
+			ScheduleRules:    buildScheduleRulesYjsy(course.ScheduleRules),
+			RawScheduleRules: course.RawScheduleRules,
+			RawAdjust:        course.RawAdjust,
+		})
+	}
+	return courseList
+}
+
+func GetTop2TermsYjsy(term *yjsy.Term) *yjsy.Term {
+	t := new(yjsy.Term)
 	if len(term.Terms) <= constants.CourseCacheMaxNum {
 		return term
 	}

@@ -64,6 +64,14 @@ struct Course {
     8: required string rawAdjust                        // (原始数据) 调课规则
 }
 
+// 当前周数、学期、学年
+struct LocateDate {
+    1: required string week
+    2: required string year
+    3: required string term
+    4: required string date
+}
+
 // 开屏页
 struct Picture{
     1:i64 id,                           // sf自动生成的id
@@ -172,7 +180,23 @@ struct NoticeInfo {
     2: optional string url
     3: optional string date
 }
+
+struct Contributor {
+  1: string name
+  2: string avatar_url
+  3: string url
+  4: i64 contributions
+}
 // ====== END Common ======
+
+// version
+struct Version{
+    1: optional string version_code
+    2: optional string version_name
+    3: optional bool force
+    4: optional string changelog
+    5: optional string url
+}
 
 // Ai_agent
 struct Message{

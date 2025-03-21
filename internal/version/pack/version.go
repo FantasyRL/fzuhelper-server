@@ -16,9 +16,24 @@ limitations under the License.
 
 package pack
 
+import (
+	"github.com/west2-online/fzuhelper-server/kitex_gen/model"
+)
+
 type Version struct {
 	Version string
 	Code    string
 	Url     string
 	Feature string
+	Force   bool
+}
+
+func BuildVersion(version *Version) *model.Version {
+	return &model.Version{
+		VersionCode: &version.Code,
+		VersionName: &version.Version,
+		Force:       &version.Force,
+		Changelog:   &version.Feature,
+		Url:         &version.Url,
+	}
 }

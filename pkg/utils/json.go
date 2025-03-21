@@ -17,11 +17,11 @@ limitations under the License.
 package utils
 
 import (
-	"encoding/json"
+	"github.com/bytedance/sonic"
 )
 
 func JSONEncode(v interface{}) (string, error) {
-	data, err := json.Marshal(v)
+	data, err := sonic.Marshal(v)
 	if err != nil {
 		return "", err
 	}

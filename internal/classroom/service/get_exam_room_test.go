@@ -47,7 +47,7 @@ func TestGetExamRoomInfo(t *testing.T) {
 			mockReturn: []*jwch.ExamRoomInfo{
 				{Location: "旗山东1"},
 			},
-			expectedResult: []*jwch.ExamRoomInfo{
+			expectedResult: []*model.ExamRoomInfo{
 				{Location: "旗山东1"},
 			},
 			expectingError: false,
@@ -57,7 +57,7 @@ func TestGetExamRoomInfo(t *testing.T) {
 			mockReturn: []*jwch.ExamRoomInfo{
 				{Location: "旗山东1"},
 			},
-			expectedResult: []*jwch.ExamRoomInfo{
+			expectedResult: []*model.ExamRoomInfo{
 				{Location: "旗山东1"},
 			},
 			expectingError: false,
@@ -70,7 +70,8 @@ func TestGetExamRoomInfo(t *testing.T) {
 	}
 
 	defer mockey.UnPatchAll()
-
+	mockey.Mock((*classroomCache.CacheClassroom).SetExamRoom).
+		To(func(ctx context.Context, key string, value []*model.ExamRoomInfo) {}).Build()
 	// 运行所有测试用例
 	for _, tc := range tests {
 		mockey.PatchConvey(tc.name, t, func() {
@@ -79,16 +80,19 @@ func TestGetExamRoomInfo(t *testing.T) {
 			mockey.Mock((*cache.Cache).IsKeyExist).To(func(ctx context.Context, key string) bool {
 				return tc.expectedCached
 			}).Build()
-			mockey.Mock((*classroomCache.CacheClassroom).SetExamRoom).To(func(ctx context.Context, key string, value []*jwch.ExamRoomInfo) {}).Build()
-			mockey.Mock((*classroomCache.CacheClassroom).GetExamRoom).Return(tc.mockReturn, nil).Build()
+			mockey.Mock((*classroomCache.CacheClassroom).GetExamRoom).Return(tc.expectedResult, nil).Build()
 			mockey.Mock((*jwch.Student).WithLoginData).Return(jwch.NewStudent()).Build()
 			mockey.Mock((*jwch.Student).GetExamRoom).Return(tc.mockReturn, nil).Build()
 			// mock login data
-			loginData := new(model.LoginData)
+			loginData := &model.LoginData{
+				Id:      "123456789",
+				Cookies: "cookie1=value1;cookie2=value2",
+			}
+
 			ctx := customContext.WithLoginData(context.Background(), loginData)
 
 			classroomService := NewClassroomService(ctx, mockClientSet)
-			result, err := classroomService.GetExamRoomInfo(req)
+			result, err := classroomService.GetExamRoomInfo(req, loginData)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expectedResult, result)

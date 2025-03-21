@@ -25,7 +25,6 @@ import (
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/west2-online/fzuhelper-server/kitex_gen/course"
 	"github.com/west2-online/fzuhelper-server/kitex_gen/model"
 	"github.com/west2-online/fzuhelper-server/pkg/base"
 	customContext "github.com/west2-online/fzuhelper-server/pkg/base/context"
@@ -76,9 +75,13 @@ func TestCourseService_GetTermsList(t *testing.T) {
 		Id:      "052106112",
 		Cookies: "cookie1=value1; cookie2=value2",
 	}
-	req := &course.TermListRequest{}
 
 	defer mockey.UnPatchAll()
+	mockey.Mock((*coursecache.CacheCourse).SetTermsCache).To(
+		func(ctx context.Context, key string, list []string) error {
+			return nil
+		},
+	).Build()
 	for _, tc := range testCases {
 		mockey.PatchConvey(tc.name, t, func() {
 			mockey.Mock((*jwch.Student).GetTerms).Return(tc.mockTermsReturn, tc.mockTermsError).Build()
@@ -106,15 +109,14 @@ func TestCourseService_GetTermsList(t *testing.T) {
 					},
 				).Build()
 			}
-			mockey.Mock((*coursecache.CacheCourse).SetTermsCache).To(
-				func(ctx context.Context, key string, list []string) error {
-					return nil
-				},
-			).Build()
-			ctx := customContext.WithLoginData(context.Background(), mockLoginData)
-			courseService := NewCourseService(ctx, mockClientSet)
 
-			result, err := courseService.GetTermsList(req)
+			ctx := customContext.WithLoginData(context.Background(), mockLoginData)
+			courseService := NewCourseService(ctx, mockClientSet, nil)
+
+			result, err := courseService.GetTermsList(&model.LoginData{
+				Id:      "123456789",
+				Cookies: "magic cookies",
+			})
 
 			if tc.expectError != nil {
 				assert.Nil(t, result)

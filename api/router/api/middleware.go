@@ -454,6 +454,56 @@ func _getcalendarMw() []app.HandlerFunc {
 	return nil
 }
 
+func _versionMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _androidgetversionMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _getlocatedateMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _course0Mw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _yjsyMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _getgetlogindataforyjsyMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _user2Mw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _viMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _common1Mw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _getcontributorinfoMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
 func _aiMw() []app.HandlerFunc {
 	// your code...
 	return nil

@@ -18,44 +18,64 @@ package academic
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/west2-online/fzuhelper-server/internal/academic/pack"
 	"github.com/west2-online/fzuhelper-server/internal/academic/service"
-	"github.com/west2-online/fzuhelper-server/internal/academic/syncer"
 	"github.com/west2-online/fzuhelper-server/kitex_gen/academic"
 	"github.com/west2-online/fzuhelper-server/pkg/base"
-	"github.com/west2-online/fzuhelper-server/pkg/logger"
+	metainfoContext "github.com/west2-online/fzuhelper-server/pkg/base/context"
+	"github.com/west2-online/fzuhelper-server/pkg/taskqueue"
 	"github.com/west2-online/jwch"
+	"github.com/west2-online/yjsy"
 )
 
 // AcademicServiceImpl implements the last service interface defined in the IDL.
 type AcademicServiceImpl struct {
 	ClientSet *base.ClientSet
-	Syncer    *syncer.AcademicSyncer
+	taskQueue taskqueue.TaskQueue
 }
 
-func NewAcademicService(clientSet *base.ClientSet, syncer *syncer.AcademicSyncer) *AcademicServiceImpl {
+func NewAcademicService(clientSet *base.ClientSet, taskQueue taskqueue.TaskQueue) *AcademicServiceImpl {
 	return &AcademicServiceImpl{
 		ClientSet: clientSet,
-		Syncer:    syncer,
+		taskQueue: taskQueue,
 	}
 }
 
 // GetScores implements the AcademicServiceImpl interface.
 func (s *AcademicServiceImpl) GetScores(ctx context.Context, _ *academic.GetScoresRequest) (resp *academic.GetScoresResponse, err error) {
 	resp = academic.NewGetScoresResponse()
-	var scores []*jwch.Mark
-
-	scores, err = service.NewAcademicService(ctx, s.ClientSet, s.Syncer).GetScores()
+	loginData, err := metainfoContext.GetLoginData(ctx)
 	if err != nil {
-		logger.Infof("Academic.GetScores: GetScores failed, err: %v", err)
-		resp.Base = base.BuildBaseResp(err)
+		return nil, fmt.Errorf("Academic.GetScores: Get login data fail %w", err)
+	}
+	if strings.HasPrefix(loginData.Id[:5], "00000") {
+		var scores []*yjsy.Mark
+
+		scores, err = service.NewAcademicService(ctx, s.ClientSet, s.taskQueue).GetScoresYjsy(loginData)
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+
+		resp.Base = base.BuildSuccessResp()
+		resp.Scores = pack.BuildScoresYjsy(scores)
+		return resp, nil
+	} else {
+		var scores []*jwch.Mark
+
+		scores, err = service.NewAcademicService(ctx, s.ClientSet, s.taskQueue).GetScores(loginData)
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+
+		resp.Base = base.BuildSuccessResp()
+		resp.Scores = pack.BuildScores(scores)
 		return resp, nil
 	}
-
-	resp.Base = base.BuildSuccessResp()
-	resp.Scores = pack.BuildScores(scores)
-	return resp, nil
 }
 
 // GetGPA implements the AcademicServiceImpl interface.
@@ -65,7 +85,6 @@ func (s *AcademicServiceImpl) GetGPA(ctx context.Context, _ *academic.GetGPARequ
 
 	gpa, err = service.NewAcademicService(ctx, s.ClientSet, nil).GetGPA()
 	if err != nil {
-		logger.Infof("Academic.GetGPA: GetGPA failed, err: %v", err)
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}
@@ -81,7 +100,6 @@ func (s *AcademicServiceImpl) GetCredit(ctx context.Context, _ *academic.GetCred
 
 	credit, err = service.NewAcademicService(ctx, s.ClientSet, nil).GetCredit()
 	if err != nil {
-		logger.Infof("Academic.GetCredit: GetCredit failed, err: %v", err)
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}
@@ -98,7 +116,6 @@ func (s *AcademicServiceImpl) GetUnifiedExam(ctx context.Context, _ *academic.Ge
 
 	unifiedExam, err = service.NewAcademicService(ctx, s.ClientSet, nil).GetUnifiedExam()
 	if err != nil {
-		logger.Infof("Academic.GetUnifiedExam: GetUnifiedExam failed, err: %v", err)
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}

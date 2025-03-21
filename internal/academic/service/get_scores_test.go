@@ -24,12 +24,12 @@ import (
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/west2-online/fzuhelper-server/internal/academic/syncer"
 	"github.com/west2-online/fzuhelper-server/kitex_gen/model"
 	"github.com/west2-online/fzuhelper-server/pkg/base"
 	meta "github.com/west2-online/fzuhelper-server/pkg/base/context"
 	"github.com/west2-online/fzuhelper-server/pkg/cache"
 	academicCache "github.com/west2-online/fzuhelper-server/pkg/cache/academic"
+	"github.com/west2-online/fzuhelper-server/pkg/taskqueue"
 	"github.com/west2-online/jwch"
 )
 
@@ -119,9 +119,12 @@ func TestAcademicService_GetScores(t *testing.T) {
 					Return(tc.mockCacheReturn, tc.mockCacheError).
 					Build()
 			}
-			mockey.Mock((*syncer.AcademicSyncer).Add).Return().Build()
-			academicService := NewAcademicService(context.Background(), mockClientSet, nil)
-			result, err := academicService.GetScores()
+			mockey.Mock((*taskqueue.BaseTaskQueue).Add).Return().Build()
+			academicService := NewAcademicService(context.Background(), mockClientSet, new(taskqueue.BaseTaskQueue))
+			result, err := academicService.GetScores(&model.LoginData{
+				Id:      "123456789",
+				Cookies: "cookie1=value1;cookie2=value2",
+			})
 			if tc.expectingError {
 				assert.Nil(t, result)
 				assert.Error(t, err)

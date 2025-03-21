@@ -118,13 +118,32 @@ type upyun struct {
 	UssDomain      string `mapstructure:"uss-domain"`
 	DownloadDomain string `mapstructure:"download-domain"`
 	Path           string
+	AvatarPath     string `mapstructure:"avatar-path"`
+}
+
+type AndroidUmeng struct {
+	AppKey          string `mapstructure:"app_key"`
+	AppMasterSecret string `mapstructure:"app_master_secret"`
+}
+
+type IOSUmeng struct {
+	AppKey          string `mapstructure:"app_key"`
+	AppMasterSecret string `mapstructure:"app_master_secret"`
 }
 
 type umeng struct {
-	AppKey          string `mapstructure:"app_key"`
-	MessageSecret   string `mapstructure:"message_secret"`
-	AppMasterSecret string `mapstructure:"app_master_secret"`
-	PackageName     string `mapstructure:"package_name"`
+	Android AndroidUmeng `mapstructure:"android"`
+	IOS     IOSUmeng     `mapstructure:"ios"`
+}
+
+type vendor struct {
+	ExamNotifications        string `mapstructure:"ExamNotifications"`
+	ExamResultsNotifications string `mapstructure:"ExamResultsNotifications"`
+	JwchNotice               string `mapstructure:"JwchNotice"`
+}
+type vendors struct {
+	Xiaomi vendor `mapstructure:"xiaomi"`
+	Huawei vendor `mapstructure:"huawei"`
 }
 
 type config struct {
@@ -142,4 +161,5 @@ type config struct {
 	UpYuns        map[string]upyun
 	Umeng         umeng
 	Url           url
+	Vendors       vendors
 }

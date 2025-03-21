@@ -42,7 +42,7 @@ struct GetLoginDataRequest {
 
 struct GetLoginDataResponse {
     1: required string id
-    2: required list<string> cookies
+    2: required string cookies
 }
 
 struct ValidateCodeRequest {
@@ -90,9 +90,21 @@ struct GetUserInfoResponse{
     2: optional model.UserInfo data,
 }
 
+struct GetLoginDataForYJSYRequest{
+    1: required string id
+    2: required string password
+}
+
+struct GetLoginDataForYJSYResponse{
+    1: required string id
+    2: required string cookies
+}
+
 service UserService {
     // 后端自动登录（含验证码识别），该接口默认不提供给客户端，仅供测试
     GetLoginDataResponse GetLoginData(1: GetLoginDataRequest request)(api.get="/api/v1/internal/user/login"), # 后端内部测试接口使用，使用 internal 前缀做区别
+    // 后端自动登录（研究生，无需验证码），该接口默认不提供给客户端，仅供测试
+    GetLoginDataForYJSYResponse GetGetLoginDataForYJSY(1:GetLoginDataForYJSYRequest request)(api.get="/api/v1/internal/yjsy/user/login"), # 后端内部测试接口使用，使用 internal 前缀做区别
     // 自动识别验证码
     ValidateCodeResponse ValidateCode(1: ValidateCodeRequest request)(api.post="/api/v1/user/validate-code")
     // 自动识别验证码（安卓兼容）
@@ -112,6 +124,7 @@ service UserService {
 ## ----------------------------------------------------------------------------
 struct CourseListRequest {
     1: required string term
+    2: optional bool is_refresh
 }
 
 struct CourseListResponse {
@@ -134,6 +147,12 @@ struct CalendarResponse {
     1: required string content
 }
 
+struct GetLocateDateRequest{}
+
+struct GetLocateDateResponse{
+    1: optional model.LocateDate locateDate
+}
+
 service CourseService {
     // 获取课表
     CourseListResponse GetCourseList(1: CourseListRequest req)(api.get="/api/v1/jwch/course/list")
@@ -141,6 +160,8 @@ service CourseService {
     CourseTermListResponse GetTermList(1: CourseTermListRequest req)(api.get="/api/v1/jwch/term/list")
     // 将课表导出成日历
     CalendarResponse GetCalendar(1: CalendarRequest req)(api.get="/api/v1/jwch/course/calendar")
+    // 获取当前周数、学期、学年
+    GetLocateDateResponse GetLocateDate(1:GetLocateDateRequest req)(api.get="/api/v1/course/date")
 }
 
 ## ----------------------------------------------------------------------------
@@ -363,6 +384,7 @@ struct UploadRequest{
     4: required string feature,
     5: required string type,
     6: required string password,
+    7: required bool force,
 }
 
 struct UploadResponse{
@@ -403,6 +425,8 @@ struct GetReleaseVersionResponse{
     3: optional string feature,
     4: optional string url,
     5: optional string version,
+    6: optional bool force,
+
 }
 
 struct GetBetaVersionRequest{
@@ -414,6 +438,8 @@ struct GetBetaVersionResponse{
     3: optional string feature,
     4: optional string url,
     5: optional string version,
+    6: optional bool force,
+
 }
 
 struct GetSettingRequest{
@@ -470,6 +496,15 @@ struct GetDumpResponse{
     2: string data,
 }
 
+struct AndroidGetVersioneRequest{
+}
+
+struct AndroidGetVersionResponse{
+    1: optional model.BaseResp base,
+    2: optional model.Version release,
+    3: optional model.Version beta,
+}
+
 service VersionService{
     LoginResponse Login(1:LoginRequest req)(api.post="/api/v2/url/login")
     UploadResponse UploadVersion(1:UploadRequest req)(api.post="/api/v2/url/upload")
@@ -483,6 +518,8 @@ service VersionService{
     GetCloudResponse GetCloud(1:GetCloudRequest req)(api.get="/api/v2/url/getcloud")
     SetCloudResponse SetCloud(1:SetCloudRequest req)(api.post="/api/v2/url/setcloud")
     GetDumpResponse GetDump(1:GetDumpRequest req)(api.get="/api/v2/url/dump")
+    AndroidGetVersionResponse AndroidGetVersion(1:AndroidGetVersioneRequest req)(api.get="/api/v2/version/android"),
+
 }
 
 ## ----------------------------------------------------------------------------
@@ -536,6 +573,16 @@ struct GetNoticeResponse {
     2: required i64 total
 }
 
+struct GetContributorInfoRequest {
+}
+
+struct GetContributorInfoResponse {
+    1: required list<model.Contributor> fzuhelper_app
+    2: required list<model.Contributor> fzuhelper_server
+    3: required list<model.Contributor> jwch
+    4: required list<model.Contributor> yjsy
+}
+
 service CommonService {
     // （兼容）获取隐私政策 css
     GetCSSResponse GetCSS(1:GetCSSRequest req)(api.get="/api/v2/common/fzu-helper.css"),
@@ -549,6 +596,8 @@ service CommonService {
     TermResponse GetTerm(1: TermRequest req) (api.get="/api/v1/terms/info")
     // 获取教务处通知
     GetNoticeResponse GetNotice(1: GetNoticeRequst req) (api.get="/api/v1/common/notice")
+    // 获取贡献者列表
+    GetContributorInfoResponse GetContributorInfo(1: GetContributorInfoRequest req)(api.get="/api/v1/common/contributor")
 }
 
 ## ----------------------------------------------------------------------------

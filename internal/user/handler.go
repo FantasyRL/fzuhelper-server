@@ -18,6 +18,7 @@ package user
 
 import (
 	"context"
+	"strings"
 
 	"github.com/west2-online/fzuhelper-server/internal/user/pack"
 	"github.com/west2-online/fzuhelper-server/internal/user/service"
@@ -56,18 +57,47 @@ func (s *UserServiceImpl) GetLoginData(ctx context.Context, req *user.GetLoginDa
 // GetUserInfo implements the UserServiceImpl interface.
 func (s *UserServiceImpl) GetUserInfo(ctx context.Context, request *user.GetUserInfoRequest) (resp *user.GetUserInfoResponse, err error) {
 	resp = new(user.GetUserInfoResponse)
-	userHeader, err := metainfoContext.GetLoginData(ctx)
+	loginData, err := metainfoContext.GetLoginData(ctx)
 	if err != nil {
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}
-	l := service.NewUserService(ctx, userHeader.Id, utils.ParseCookies(userHeader.Cookies), s.ClientSet)
-	info, err := l.GetUserInfo(userHeader.Id[len(userHeader.Id)-9:])
+	if strings.HasPrefix(loginData.Id[:5], "00000") {
+		l := service.NewUserService(ctx, loginData.Id, utils.ParseCookies(loginData.Cookies), s.ClientSet)
+		info, err := l.GetUserInfoYjsy(loginData.Id[len(loginData.Id)-9:])
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+		resp.Base = base.BuildSuccessResp()
+		resp.Data = pack.BuildInfoResp(info)
+		return resp, nil
+	} else {
+		l := service.NewUserService(ctx, loginData.Id, utils.ParseCookies(loginData.Cookies), s.ClientSet)
+		info, err := l.GetUserInfo(loginData.Id[len(loginData.Id)-9:])
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+		resp.Base = base.BuildSuccessResp()
+		resp.Data = pack.BuildInfoResp(info)
+		return resp, nil
+	}
+}
+
+// GetGetLoginDataForYJSY implements the UserServiceImpl interface.
+func (s *UserServiceImpl) GetGetLoginDataForYJSY(ctx context.Context, req *user.GetLoginDataForYJSYRequest) (
+	resp *user.GetLoginDataForYJSYResponse, err error,
+) {
+	resp = new(user.GetLoginDataForYJSYResponse)
+	l := service.NewUserService(ctx, "", nil, s.ClientSet)
+	cookies, err := l.GetLoginDataForYJSY(req)
 	if err != nil {
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}
 	resp.Base = base.BuildSuccessResp()
-	resp.Data = pack.BuildInfoResp(info)
+	resp.Id = "00000" + req.Id // yjsy的访问不需要id，5个前导0+学号表示研究生标识
+	resp.Cookies = cookies
 	return
 }

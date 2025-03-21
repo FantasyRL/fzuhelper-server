@@ -19,12 +19,14 @@ package classroom
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/west2-online/fzuhelper-server/internal/classroom/pack"
 	"github.com/west2-online/fzuhelper-server/internal/classroom/service"
 	"github.com/west2-online/fzuhelper-server/kitex_gen/classroom"
 	"github.com/west2-online/fzuhelper-server/pkg/base"
+	metainfoContext "github.com/west2-online/fzuhelper-server/pkg/base/context"
 	"github.com/west2-online/fzuhelper-server/pkg/constants"
 	"github.com/west2-online/fzuhelper-server/pkg/logger"
 	"github.com/west2-online/fzuhelper-server/pkg/utils"
@@ -58,8 +60,8 @@ func (s *ClassroomServiceImpl) GetEmptyRoom(ctx context.Context, req *classroom.
 		resp.Base = base.BuildBaseResp(err)
 		return resp, nil
 	}
-	now := time.Now().Truncate(constants.OneDay)
-	requestDate = requestDate.Truncate(constants.OneDay)
+	now := time.Now().Truncate(constants.ONE_DAY)
+	requestDate = requestDate.Truncate(constants.ONE_DAY)
 	dateDiff := requestDate.Sub(now).Hours() / HoursInADay
 	if dateDiff < MinDateDiff || dateDiff > MaxDateDiff {
 		err = fmt.Errorf("date out of range, date: %v", req.Date)
@@ -82,13 +84,27 @@ func (s *ClassroomServiceImpl) GetEmptyRoom(ctx context.Context, req *classroom.
 
 func (s *ClassroomServiceImpl) GetExamRoomInfo(ctx context.Context, req *classroom.ExamRoomInfoRequest) (resp *classroom.ExamRoomInfoResponse, err error) {
 	resp = classroom.NewExamRoomInfoResponse()
-	rooms, err := service.NewClassroomService(ctx, s.ClientSet).GetExamRoomInfo(req)
+	loginData, err := metainfoContext.GetLoginData(ctx)
 	if err != nil {
-		base.LogError(fmt.Errorf("Classroom.GetExamRoomInfo: get exam info failed, err: %w", err))
-		resp.Base = base.BuildBaseResp(err)
+		return nil, fmt.Errorf("Classroom.GetExamRoomInfo: Get login data fail %w", err)
+	}
+	if strings.HasPrefix(loginData.Id[:5], "00000") {
+		rooms, err := service.NewClassroomService(ctx, s.ClientSet).GetExamRoomInfoYjsy(req, loginData)
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+		resp.Base = base.BuildSuccessResp()
+		resp.Rooms = rooms
+		return resp, nil
+	} else {
+		rooms, err := service.NewClassroomService(ctx, s.ClientSet).GetExamRoomInfo(req, loginData)
+		if err != nil {
+			resp.Base = base.BuildBaseResp(err)
+			return resp, nil
+		}
+		resp.Base = base.BuildSuccessResp()
+		resp.Rooms = rooms
 		return resp, nil
 	}
-	resp.Base = base.BuildSuccessResp()
-	resp.Rooms = pack.BuildExamRoomInfo(rooms)
-	return resp, nil
 }

@@ -16,34 +16,43 @@ limitations under the License.
 
 package constants
 
-import "time"
-
 const (
 	RedisSlowQuery = 10 // ms redis默认的慢查询时间，适用于 logger
 )
 
-// Redis Key and Expire Time
 const (
-	ClassroomKeyExpire    = 2 * 24 * time.Hour
-	LaunchScreenKeyExpire = 2 * 24 * time.Hour
-	// UserInfoKeyExpire 用户信息过期时间
-	UserInfoKeyExpire = 7 * 24 * time.Hour
-	// CommonTermListKeyExpire common模块中的学期列表过期时间
-	CommonTermListKeyExpire = 7 * 24 * time.Hour
-	// CourseTermsKeyExpire course模块中学期列表过期时间
-	CourseTermsKeyExpire  = 7 * 24 * time.Hour
-	TermInfoKeyExpire     = 7 * 24 * time.Hour // 学期信息过期时间
-	ExamRoomKeyExpire     = 1 * time.Hour      // 考场信息过期时间
-	PaperFileDirKeyExpire = 2 * 24 * time.Hour // 历年卷文件目录过期时间
-	LastLaunchScreenIdKey = "last_launch_screen_id"
-	AcademicScoresExpire  = 5 * time.Minute // 成绩过期时间为5分钟
-	// TermListKey CommonTermListKey
-	TermListKey = "term_list"
 	// CourseCacheMaxNum CourseList储存最新TopN个学期
 	CourseCacheMaxNum = 2
+	// KeyNeverExpire key 永不过期
+	KeyNeverExpire = 0
 )
 
-// Redis DB Name
+// Expire Time
+const (
+	ClassroomKeyExpire      = 2 * ONE_DAY    // [classroom] 空教室
+	LaunchScreenKeyExpire   = 2 * ONE_DAY    // [launch_screen] 开屏页
+	UserInfoKeyExpire       = 1 * ONE_WEEK   // [user] 用户信息
+	CommonTermListKeyExpire = 1 * ONE_WEEK   // [common] 学期列表
+	CourseTermsKeyExpire    = 3 * ONE_DAY    // [course] 学期列表
+	TermInfoKeyExpire       = 7 * ONE_DAY    // [common] 学期详细信息
+	ExamRoomKeyExpire       = 1 * ONE_HOUR   // [classroom] 考场信息
+	PaperFileDirKeyExpire   = 2 * ONE_DAY    // [paper] 历年卷文件目录
+	AcademicScoresExpire    = 5 * ONE_MINUTE // [academic] 成绩信息
+	VisitExpire             = 1 * ONE_DAY    // [version]访问统计
+)
+
+// Key Name
+const (
+	TermListKey                   = "term_list"                    // [common]
+	ContributorJwchKey            = "contributor:jwch"             // [common]
+	ContributorYJSYKey            = "contributor:yjsy"             // [common]
+	ContributorFzuhelperAppKey    = "contributor:fzuhelper-app"    // [common]
+	ContributorFzuhelperServerKey = "contributor:fzuhelper-server" // [common]
+	LastLaunchScreenIdKey         = "last_launch_screen_id"        // [launch_screen]
+	LocateDateKey                 = "locateDate"                   // [course]
+)
+
+// DB Name
 const (
 	RedisDBEmptyRoom    = 0
 	RedisDBLaunchScreen = 1
@@ -52,4 +61,5 @@ const (
 	RedisDBCommon       = 4
 	RedisDBCourse       = 5
 	RedisDBAcademic     = 6
+	RedisDBVersion      = 7
 )
