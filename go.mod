@@ -171,13 +171,13 @@ require (
 require (
 	github.com/arran4/golang-ical v0.3.2
 	github.com/cloudwego/kitex/pkg/protocol/bthrift v0.0.0-20250124072755-047444c8e964
+	github.com/hertz-contrib/sse v0.0.6
 	github.com/samber/lo v1.49.1
 	github.com/west2-online/yjsy v0.0.7
 )
 
 require (
 	github.com/hashicorp/go-metrics v0.5.4 // indirect
-	github.com/hertz-contrib/sse v0.0.6 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect

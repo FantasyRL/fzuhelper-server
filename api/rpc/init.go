@@ -38,7 +38,7 @@ var (
 	academicClient           academicservice.Client
 	versionClient            versionservice.Client
 	commonClient             commonservice.Client
-	aiAgentClient            *grpc.AIAgentClient
+	aiAgentClient            grpc.AiAgentClient
 )
 
 func Init() {

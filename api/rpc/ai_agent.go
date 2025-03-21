@@ -32,10 +32,7 @@ func InitAiAgentRPC() {
 	if err != nil {
 		logger.Fatalf("api.rpc.ai_agent InitUserRPC failed, err is %v", err)
 	}
-	aiAgentClient = c
-}
-
-func InitAiAgentStreamRPC() {
+	aiAgentClient = *c
 }
 
 func TestRPC(ctx context.Context, req *ai_agent.ChatRequest) (string, error) {
@@ -48,7 +45,7 @@ func TestRPC(ctx context.Context, req *ai_agent.ChatRequest) (string, error) {
 }
 
 func StreamChatRPC(ctx context.Context, req *ai_agent.ChatRequest) (chan string, error) {
-	s, err := aiAgentClient.Cli.StreamChat(ctx, req)
+	streamCli, err := aiAgentClient.Cli.StreamChat(ctx, req)
 	if err != nil {
 		logger.Errorf("StreamChatRPC: RPC create stream failed: %v", err.Error())
 		return nil, errno.InternalServiceError.WithError(err)
@@ -58,7 +55,7 @@ func StreamChatRPC(ctx context.Context, req *ai_agent.ChatRequest) (chan string,
 		defer close(ch) // 确保在 goroutine 退出时关闭 channel
 
 		for {
-			resp, err := s.Recv()
+			resp, err := streamCli.Recv()
 			if err != nil {
 				if errors.Is(err, io.EOF) {
 					break

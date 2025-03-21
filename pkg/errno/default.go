@@ -41,7 +41,8 @@ var (
 	NoMatchingPlanError   = NewErrNo(BizErrorCode, "没有匹配的计划")
 
 	// internal error
-	UpcloudError = NewErrNo(BizFileUploadErrorCode, "云服务商交互错误")
+	UpcloudError         = NewErrNo(BizFileUploadErrorCode, "云服务商交互错误")
+	EtcdNoEpTimeOutError = NewErrNo(InternalTimeoutErrorCode, "etcd没有可用endpoint")
 
 	// redis
 	RedisError = NewErrNo(InternalRedisErrorCode, "缓存服务出现问题")

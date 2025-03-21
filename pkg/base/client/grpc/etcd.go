@@ -20,24 +20,64 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
-	"math/rand"
-	"sync"
-	"time"
-
 	"github.com/bytedance/sonic"
+	"github.com/west2-online/fzuhelper-server/pkg/logger"
+	"github.com/west2-online/fzuhelper-server/pkg/utils"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"strings"
 
 	"github.com/west2-online/fzuhelper-server/config"
 	"github.com/west2-online/fzuhelper-server/pkg/constants"
 )
 
+const (
+	etcdPrefix = "grpc"
+)
+
 // EtcdResolver 用来封装 etcd 客户端和解析出来的 gRPC endpoint 列表
 type EtcdResolver struct {
 	EtcdClient  *clientv3.Client
-	ServiceKey  string       // etcd 里存服务地址列表的 key，如 "/services/ai_agent/grpc"
-	Endpoints   []string     // 当前解析到的服务列表
-	endpointsMu sync.RWMutex // 读写锁，保证多协程安全
+	serviceName string              // etcd 里存服务地址列表的 key，如 "ai_agent"
+	Endpoints   utils.AtomicStrings // 当前解析到的服务列表，原子性的string确保并发安全
+	prefix      string
+}
+
+// NewEtcdResolver 创建一个etcdResolver
+func NewEtcdResolver(endpoints []string) (*EtcdResolver, error) {
+	cfg := &clientv3.Config{
+		Endpoints:   endpoints,
+		DialTimeout: constants.EtcdDialTimeout,
+	}
+
+	etcdClient, err := clientv3.New(*cfg)
+	if err != nil {
+		return nil, fmt.Errorf("NewEtcdResolver: connect etcd failed: %w", err)
+	}
+	return &EtcdResolver{
+		EtcdClient: etcdClient,
+		prefix:     etcdPrefix,
+	}, nil
+
+}
+
+func (r *EtcdResolver) WatchAndResolve(ctx context.Context) {
+	watchCh := r.EtcdClient.Watch(ctx, r.getEtcdKeyPrefix())
+	for wResp := range watchCh {
+		for _, ev := range wResp.Events {
+			switch ev.Type {
+			case clientv3.EventTypePut:
+				var eps []string
+				if err := sonic.Unmarshal(ev.Kv.Value, &eps); err != nil {
+					// 如果解析失败，认为是单个 endpoint
+					eps = []string{string(ev.Kv.Value)}
+				}
+				r.Endpoints.Store(eps)
+			case clientv3.EventTypeDelete:
+				r.Endpoints.Store(nil)
+			}
+
+		}
+	}
 }
 
 // initEtcdClient 允许即使没有初始 endpoints 也能启动
@@ -54,76 +94,44 @@ func initEtcdClient(serviceKey string) (*EtcdResolver, error) {
 	}
 
 	c := &EtcdResolver{
-		EtcdClient: etcdCli,
-		ServiceKey: serviceKey,
+		EtcdClient:  etcdCli,
+		serviceName: serviceKey,
 	}
 
 	// 尝试加载 endpoints，但不因为空而失败
-	if err := c.loadEndpoints(); err != nil {
-		log.Printf("Warning: %v\n", err)
+	if err := c.initResolve(); err != nil {
+		logger.Errorf("initResolve failed: %v", err)
 	}
 
 	return c, nil
 }
 
-// loadEndpoints 尝试从 etcd 中加载 endpoints，并统一解析为 []string
-func (c *EtcdResolver) loadEndpoints() error {
-	resp, err := c.EtcdClient.Get(context.Background(), c.ServiceKey)
+// initResolve 尝试从 etcd 中加载 endpoints，并统一解析为 []string
+func (r *EtcdResolver) initResolve() error {
+	resp, err := r.EtcdClient.Get(context.Background(), r.getEtcdKeyPrefix(), clientv3.WithPrefix())
 	if err != nil {
 		return fmt.Errorf("etcd get failed: %w", err)
 	}
-	if len(resp.Kvs) == 0 {
-		// 允许初始启动时 endpoints 为空
-		return nil
+	// 因为prefix已经写死了是prefix+svcName,其实和Kvs[0]没差，但这样写比较合理
+	// 这里即使不存在eps也返回nil
+	var allEndpoints []string
+	for _, kv := range resp.Kvs {
+		val := kv.Value
+		var eps []string
+		if err = sonic.Unmarshal(val, &eps); err != nil {
+			eps = []string{string(val)}
+		}
+		allEndpoints = append(allEndpoints, eps...)
 	}
-	val := resp.Kvs[0].Value
-	var eps []string
-	// 尝试解析为 JSON 数组
-	if err := sonic.Unmarshal(val, &eps); err != nil {
-		// 如果解析失败，认为是单个 endpoint
-		eps = []string{string(val)}
-	}
-	c.endpointsMu.Lock()
-	c.Endpoints = eps
-	c.endpointsMu.Unlock()
+	r.Endpoints.Store(allEndpoints)
 	return nil
 }
 
-// watchEndpoints 监听 etcd 里 key 的变化
-func (c *AIAgentClient) watchEndpoints() {
-	watchCh := c.EtcdResolver.EtcdClient.Watch(context.Background(), c.EtcdResolver.ServiceKey)
-	for wResp := range watchCh {
-		for _, ev := range wResp.Events {
-			switch ev.Type {
-			case clientv3.EventTypePut:
-				var eps []string
-				if err := sonic.Unmarshal(ev.Kv.Value, &eps); err != nil {
-					// 如果解析失败，认为是单个 endpoint
-					eps = []string{string(ev.Kv.Value)}
-				}
-				c.EtcdResolver.endpointsMu.Lock()
-				c.EtcdResolver.Endpoints = eps
-				c.EtcdResolver.endpointsMu.Unlock()
-				// 进行refresh
-				c.RefreshGRPC()
-				// log.Printf("Endpoints updated: %v\n", eps)
-			case clientv3.EventTypeDelete:
-				c.EtcdResolver.endpointsMu.Lock()
-				c.EtcdResolver.Endpoints = nil
-				c.EtcdResolver.endpointsMu.Unlock()
-				// log.Println("Endpoints key deleted in etcd, no valid servers now.")
-			}
-		}
-	}
+// GetRandomEndpoint 随机返回一个 endpoint
+func (r *EtcdResolver) GetRandomEndpoint() (string, bool) {
+	return r.Endpoints.Random()
 }
 
-// getRandomEndpoint 随机返回一个 endpoint
-func (c *EtcdResolver) getRandomEndpoint() (string, error) {
-	c.endpointsMu.RLock()
-	defer c.endpointsMu.RUnlock()
-	if len(c.Endpoints) == 0 {
-		return "", errors.New("no endpoints available")
-	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return c.Endpoints[r.Intn(len(c.Endpoints))], nil
+func (r *EtcdResolver) getEtcdKeyPrefix() string {
+	return strings.Join([]string{r.prefix, "/", r.serviceName}, "")
 }
